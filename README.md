@@ -17,12 +17,3 @@ Clone o projeto em sua máquina ou efetue o dowload do zip.
 
 ## Passo 3:
 E por fim executar o script. 
-
-<hr>
-
-### Nesse script você encrontrará as seguintes opcões:
-<ul>
-  <li>Redimencionar</li>
-  <li>Compactar<li>
-  <li>Converter<li>
-</ul>
