@@ -2,7 +2,7 @@
 Quando temos uma grande quantidade de imagens e precisamos trata-las enfrentamos diversos problemas, seja eles:
 <ul>
   <li>Sites que limitam a quantidade de imagens a serem tratadas</li>
-  <li>Sites que limitam a quantidade diária de imagens que podemos tratar<li>
+  <li>Sites que limitam a quantidade diária de imagens que podemos tratar</li>
 </ul>
 Pensando nisso decidi criar esse script em python que automatiza todo esse processo trabalhoso, e para usa-lo é bem simples.
 
