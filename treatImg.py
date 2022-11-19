@@ -1,6 +1,7 @@
 import os
 import re
 from PIL import Image
+from tqdm import tqdm
 
 x = 0
 value = 0
@@ -14,7 +15,7 @@ def is_image(extension):
 
 def resize(root_folder, new_width):
     for root, dirs, files in os.walk(root_folder):
-        for file in files:
+        for file in tqdm(files):
             filename, extension = os.path.splitext(file)
             if is_image(extension):
                 new_imgName = filename + extension
@@ -23,16 +24,14 @@ def resize(root_folder, new_width):
                 pillow_img = Image.open(original_img_path)
                 width, height = pillow_img.size
 
-            new_height = calc_new_height(width, height, new_width)
+                new_height = calc_new_height(width, height, new_width)
 
-            new_img = pillow_img.resize((new_width, new_height))
-            new_img.save(new_img_path, optmize=True, quality=100)
-
-            print(f'A imagem {new_imgName} foi redimencionada com sucesso!')
+                new_img = pillow_img.resize((new_width, new_height))
+                new_img.save(new_img_path, optmize=True, quality=100)
 
 def compact(root_folder, value_quality):
     for root, dirs, files in os.walk(root_folder):
-        for file in files:
+        for file in tqdm(files):
             filename, extension = os.path.splitext(file)
             if is_image(extension):
                 new_imgName = filename + extension
@@ -40,14 +39,12 @@ def compact(root_folder, value_quality):
                 new_img_path = os.path.join(root, new_imgName)
                 pillow_img = Image.open(original_img_path)
 
-            new_img = pillow_img
-            new_img.save(new_img_path, optmize=True, quality=value_quality)
-
-            print(f'A imagem {new_imgName} foi comprimida com sucesso!')
+                new_img = pillow_img
+                new_img.save(new_img_path, optmize=True, quality=value_quality)
 
 def converter(root_folder, type_image):
     for root, dirs, files in os.walk(root_folder):
-        for file in files:
+        for file in tqdm(files):
             filename, extension = os.path.splitext(file)
             if is_image(extension):
                 new_imgName = filename + "." + type_image
@@ -55,15 +52,13 @@ def converter(root_folder, type_image):
                 new_img_path = os.path.join(root, new_imgName)
                 pillow_img = Image.open(original_img_path)
 
-            new_img = pillow_img
-            new_img.save(new_img_path, optmize=True, quality=60)
-            new_img.save(new_img_path, format=type_image)
+                new_img = pillow_img
+                new_img.save(new_img_path, optmize=True, quality=60)
+                new_img.save(new_img_path, format=type_image)
 
             if is_image(extension):
                 if extension != type_image:
                     os.remove(original_img_path)
-
-            print(f'A imagem {new_imgName} foi convertida com sucesso!')
 
 while x < 4:
     x = int(input('Selecione uma das opções abaixo:\n'
