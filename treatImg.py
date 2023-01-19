@@ -51,14 +51,14 @@ def converter(root_folder, type_image):
                 original_img_path = os.path.join(root, file)
                 new_img_path = os.path.join(root, new_imgName)
                 pillow_img = Image.open(original_img_path)
-
                 new_img = pillow_img
                 new_img.save(new_img_path, optmize=True, quality=60)
                 new_img.save(new_img_path, format=type_image)
-
-            if is_image(extension):
-                if extension != type_image:
+                type_image_completed = "." + type_image
+                if extension != type_image_completed:
                     os.remove(original_img_path)
+
+
 
 while x < 4:
     x = int(input('Selecione uma das opções abaixo:\n'
