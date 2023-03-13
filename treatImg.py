@@ -1,5 +1,6 @@
-import os
 import re
+import os
+import logging
 from PIL import Image
 from tqdm import tqdm
 
@@ -42,6 +43,10 @@ def compact(root_folder, value_quality):
                 new_img = pillow_img
                 new_img.save(new_img_path, optmize=True, quality=value_quality)
 
+
+
+logging.basicConfig(filename='conversion_errors.log', level=logging.ERROR)
+
 def converter(root_folder, type_image):
     for root, dirs, files in os.walk(root_folder):
         for file in tqdm(files):
@@ -50,22 +55,25 @@ def converter(root_folder, type_image):
                 new_imgName = filename + "." + type_image
                 original_img_path = os.path.join(root, file)
                 new_img_path = os.path.join(root, new_imgName)
-                pillow_img = Image.open(original_img_path)
-                new_img = pillow_img
-                new_img.save(new_img_path, optmize=True, quality=60)
-                new_img.save(new_img_path, format=type_image)
-                type_image_completed = "." + type_image
-                if extension != type_image_completed:
-                    os.remove(original_img_path)
-
-
+                try:
+                    pillow_img = Image.open(original_img_path)
+                    pillow_img = pillow_img.convert('RGB') # converter para RGB antes de salvar como JPEG
+                    new_img = pillow_img
+                    new_img.save(new_img_path, optmize=True, quality=60)
+                    new_img.save(new_img_path, format=type_image)
+                    type_image_completed = "." + type_image
+                    if extension != type_image_completed:
+                        os.remove(original_img_path)
+                except Exception as e:
+                    logging.error(f'Erro ao converter {original_img_path}: {e}')
 
 while x < 4:
     x = int(input('Selecione uma das opções abaixo:\n'
                   '1 - Redimencionar Imagens\n'
                   '2 - Comprimir Imagens\n'
                   '3 - Converter Imagens\n'
-                  '4 - Sair\n'))
+                  '4 - Deletar cópias\n'
+                  '5 - Sair\n'))
 
 
     def main(root_folder, new_width = 0, value_quality = 0, type_image = ''):
