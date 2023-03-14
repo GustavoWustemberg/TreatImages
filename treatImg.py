@@ -72,8 +72,7 @@ while x < 4:
                   '1 - Redimencionar Imagens\n'
                   '2 - Comprimir Imagens\n'
                   '3 - Converter Imagens\n'
-                  '4 - Deletar cópias\n'
-                  '5 - Sair\n'))
+                  '4 - Sair\n'))
 
 
     def main(root_folder, new_width = 0, value_quality = 0, type_image = ''):
