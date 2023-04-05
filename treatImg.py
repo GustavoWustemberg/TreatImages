@@ -1,8 +1,8 @@
-import re
 import os
-import logging
+import re
 from PIL import Image
 from tqdm import tqdm
+import logging
 
 x = 0
 value = 0
@@ -44,9 +44,7 @@ def compact(root_folder, value_quality):
                 new_img.save(new_img_path, optmize=True, quality=value_quality)
 
 
-
 logging.basicConfig(filename='conversion_errors.log', level=logging.ERROR)
-
 def converter(root_folder, type_image):
     for root, dirs, files in os.walk(root_folder):
         for file in tqdm(files):
@@ -57,7 +55,6 @@ def converter(root_folder, type_image):
                 new_img_path = os.path.join(root, new_imgName)
                 try:
                     pillow_img = Image.open(original_img_path)
-                    pillow_img = pillow_img.convert('RGB') # converter para RGB antes de salvar como JPEG
                     new_img = pillow_img
                     new_img.save(new_img_path, optmize=True, quality=60)
                     new_img.save(new_img_path, format=type_image)
@@ -66,6 +63,8 @@ def converter(root_folder, type_image):
                         os.remove(original_img_path)
                 except Exception as e:
                     logging.error(f'Erro ao converter {original_img_path}: {e}')
+
+
 
 while x < 4:
     x = int(input('Selecione uma das opções abaixo:\n'
