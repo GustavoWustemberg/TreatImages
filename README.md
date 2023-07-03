@@ -7,13 +7,17 @@ Quando temos uma grande quantidade de imagens e precisamos trata-las enfrentamos
 Pensando nisso decidi criar esse script em python que automatiza todo esse processo trabalhoso, e para usa-lo é bem simples.
 
 ## Passo 1:
+Clone o projeto em sua máquina ou efetue o dowload do zip.
+
+## Passo 2:
 Execute esse comando em seu terminal.
 
 ```bash
-pip install Pillow
+pip install -r requirements.txt 
 ```
-## Passo 2:
-Clone o projeto em sua máquina ou efetue o dowload do zip.
 
 ## Passo 3:
-E por fim executar o script. 
+E por fim executar o script com o seguinte comando. 
+```bash
+py app.py
+```
