@@ -1,4 +1,4 @@
-# TreatImages
+# <img width="40px" src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg" /> TreatImages
 Quando temos uma grande quantidade de imagens e precisamos trata-las enfrentamos diversos problemas, seja eles:
 <ul>
   <li>Sites que limitam a quantidade de imagens a serem tratadas</li>
