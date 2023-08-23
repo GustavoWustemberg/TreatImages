@@ -1,18 +1,35 @@
 import logging
 from Class.initializer import initializer
+import questionary
 
 logging.basicConfig(filename='conversion_errors.log', level=logging.ERROR)
-x = 0
 
-while x < 5:
-    x = int(input('Selecione uma das opções abaixo:\n'
-                  '1 - Redimensionar Imagens\n'
-                  '2 - Comprimir Imagens\n'
-                  '3 - Converter Imagens\n'
-                  '4 - Remover Fundo das Imagens\n'
-                  '5 - Sair\n'))
-    if not x > 4:
+options = [
+    'Redimensionar Imagens',
+    'Comprimir Imagens',
+    'Converter Imagens',
+    'Remover Fundo das Imagens',
+    'Sair'
+]
+
+while True:
+    selected_option = questionary.select(
+        'Selecione uma das opções abaixo:',
+        choices=options
+    ).ask()
+
+    if selected_option == 'Sair':
+        break
+
+    if selected_option != 'Remover Fundo das Imagens':
         root_folder = input('Digite o caminho onde estão as imagens: ')
-
         init = initializer(root_folder, None, None, None)
-        init.options(x)
+        if selected_option == 'Redimensionar Imagens':
+            init.options(1)
+        elif selected_option == 'Comprimir Imagens':
+            init.options(2)
+        elif selected_option == 'Converter Imagens':
+            init.options(3)
+    else:
+        init = initializer(None, None, None, None)
+        init.options(4)
