@@ -17,10 +17,13 @@ def converter(root_folder, type_image):
                     new_img = pillow_img
                     if pillow_img.mode == "RGBA" and type_image == "jpg":
                         new_img = pillow_img.convert("RGB")
-                    new_img.save(new_img_path, optmize=True, quality=60)
+                    new_img.save(new_img_path, optimize=True, quality=60)
                     new_img.save(new_img_path, format=type_image)
                     type_image_completed = "." + type_image
                     if extension != type_image_completed:
                         os.remove(original_img_path)
                 except Exception as e:
                     logging.error(f'Erro ao converter {original_img_path}: {e}')
+                    return False
+
+    return True

@@ -15,10 +15,11 @@ def resize(root_folder, new_width):
                 try:
                     pillow_img = Image.open(original_img_path)
                     width, height = pillow_img.size
-
                     new_height = functionalities.calc_new_height(width, height, new_width)
-
                     new_img = pillow_img.resize((new_width, new_height))
                     new_img.save(new_img_path, optmize=True, quality=100)
                 except Exception as e:
-                    logging.error(f'Erro ao redimencinar {original_img_path}: {e}')
+                    logging.error(f'Erro ao redimensionar {original_img_path}: {e}')
+                    return False
+
+    return True

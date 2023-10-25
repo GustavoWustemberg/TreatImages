@@ -18,3 +18,6 @@ def compact(root_folder, value_quality):
                     new_img.save(new_img_path, optmize=True, quality=value_quality)
                 except Exception as e:
                     logging.error(f'Erro ao compactar {original_img_path}: {e}')
+                    return False
+
+    return True
