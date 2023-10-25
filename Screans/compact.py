@@ -16,7 +16,7 @@ class Compact(QtWidgets.QMainWindow):
         pixmap = QtGui.QPixmap()
         pixmap.loadFromData(icon_bytes)
         self.setWindowIcon(QtGui.QIcon(pixmap))
-        self.setFixedSize(1500, 400)
+        self.setFixedSize(1200, 400)
         self.init_ui()
 
     def init_ui(self):

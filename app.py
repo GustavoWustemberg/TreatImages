@@ -17,7 +17,7 @@ class MainWindow(QtWidgets.QMainWindow):
         pixmap = QtGui.QPixmap()
         pixmap.loadFromData(icon_bytes)
         self.setWindowIcon(QtGui.QIcon(pixmap))
-        self.setFixedSize(1500, 400)
+        self.setFixedSize(1200, 400)
 
         widget = QtWidgets.QWidget()
         layout = QtWidgets.QVBoxLayout()
