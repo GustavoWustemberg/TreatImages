@@ -1,2 +1,5 @@
-Pillow==10.1.0
-PyQt5==5.15.10
+Pillow>=11.0.0
+Flask>=3.0.3
+Werkzeug>=3.0.3
+rembg>=2.0.74
+onnxruntime>=1.16.0
