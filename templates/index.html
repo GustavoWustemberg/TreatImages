@@ -24,7 +24,7 @@
 
     <form id="form-resize" action="/resize" method="POST" enctype="multipart/form-data" class="tool-form">
       <div class="form-group">
-        <label for="resize-images">Imagens <span class="badge">JPG · PNG · WEBP</span></label>
+        <label for="resize-images">Imagens <span class="badge">JPG · PNG · WEBP · JFIF</span></label>
         <div class="dropzone" id="dropzone-resize" data-input="resize-images">
           <span class="dz-icon">📁</span>
           <span class="dz-text">Arraste ou <strong>clique</strong> para selecionar</span>
@@ -59,7 +59,7 @@
 
     <form id="form-convert" action="/convert" method="POST" enctype="multipart/form-data" class="tool-form">
       <div class="form-group">
-        <label for="convert-images">Imagens <span class="badge">JPG · PNG · WEBP</span></label>
+        <label for="convert-images">Imagens <span class="badge">JPG · PNG · WEBP · JFIF</span></label>
         <div class="dropzone" id="dropzone-convert" data-input="convert-images">
           <span class="dz-icon">📁</span>
           <span class="dz-text">Arraste ou <strong>clique</strong> para selecionar</span>
@@ -75,6 +75,7 @@
             <option value="webp">WebP — menor tamanho</option>
             <option value="jpg">JPG — compatível</option>
             <option value="png">PNG — sem perdas</option>
+            <option value="jfif">JFIF</option>
           </select>
           <span class="select-arrow">▾</span>
         </div>
@@ -98,7 +99,7 @@
 
     <form id="form-compress" action="/compress" method="POST" enctype="multipart/form-data" class="tool-form">
       <div class="form-group">
-        <label for="compress-images">Imagens <span class="badge">JPG · PNG · WEBP</span></label>
+        <label for="compress-images">Imagens <span class="badge">JPG · PNG · WEBP · JFIF</span></label>
         <div class="dropzone" id="dropzone-compress" data-input="compress-images">
           <span class="dz-icon">📁</span>
           <span class="dz-text">Arraste ou <strong>clique</strong> para selecionar</span>
@@ -135,7 +136,7 @@
 
     <form id="form-removebg" action="/remove-bg" method="POST" enctype="multipart/form-data" class="tool-form">
       <div class="form-group">
-        <label for="removebg-images">Imagens <span class="badge">JPG · PNG · WEBP</span></label>
+        <label for="removebg-images">Imagens <span class="badge">JPG · PNG · WEBP · JFIF</span></label>
         <div class="dropzone" id="dropzone-removebg" data-input="removebg-images">
           <span class="dz-icon">📁</span>
           <span class="dz-text">Arraste ou <strong>clique</strong> para selecionar</span>
@@ -167,7 +168,7 @@
 
     <form id="form-crop" action="/crop" method="POST" enctype="multipart/form-data" class="tool-form">
       <div class="form-group">
-        <label for="crop-images">Imagem <span class="badge">JPG · PNG · WEBP</span></label>
+        <label for="crop-images">Imagem <span class="badge">JPG · PNG · WEBP · JFIF</span></label>
         <div class="dropzone" id="dropzone-crop" data-input="crop-images">
           <span class="dz-icon">📁</span>
           <span class="dz-text">Arraste ou <strong>clique</strong> para iniciar o recorte</span>
@@ -217,6 +218,12 @@
 <div class="loading-overlay" id="loading-overlay">
   <div class="spinner"></div>
   <p class="loading-text" id="loading-text">Processando imagens…</p>
+  <div class="progress-container" id="progress-container" style="display: none;">
+    <div class="progress-bar-wrapper">
+      <div class="progress-bar" id="progress-bar"></div>
+    </div>
+    <p class="progress-status" id="progress-status">0%</p>
+  </div>
 </div>
 
 {% endblock %}

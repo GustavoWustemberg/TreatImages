@@ -4,7 +4,8 @@ import uuid
 import shutil
 import logging
 import tempfile
-from flask import Flask, render_template, request, send_file, flash, redirect, url_for, after_this_request
+import threading
+from flask import Flask, render_template, request, send_file, flash, redirect, url_for, after_this_request, jsonify
 from werkzeug.utils import secure_filename
 from PIL import Image
 from rembg import remove as rembg_remove
@@ -20,7 +21,7 @@ from Class.tools import functionalities
 _TMP_BASE       = tempfile.gettempdir()
 UPLOAD_FOLDER   = os.path.join(_TMP_BASE, "treatimages", "uploads")
 PROCESSED_FOLDER = os.path.join(_TMP_BASE, "treatimages", "processed")
-ALLOWED_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
+ALLOWED_EXTENSIONS = {"jpg", "jpeg", "png", "webp", "jfif"}
 
 app = Flask(__name__)
 app.secret_key = "treatimages-secret-2024"
@@ -34,6 +35,10 @@ logging.basicConfig(level=logging.INFO)
 os.makedirs(UPLOAD_FOLDER,   exist_ok=True)
 os.makedirs(PROCESSED_FOLDER, exist_ok=True)
 
+# Global task state for tracking asynchronous processes
+tasks = {}
+tasks_lock = threading.Lock()
+
 
 # ---------------------------------------------------------------------------
 # Image helpers
@@ -44,6 +49,7 @@ EXT_TO_PIL = {
     "jpeg": "JPEG",
     "png": "PNG",
     "webp": "WEBP",
+    "jfif": "JPEG",
 }
 
 def normalize_mode(img: Image.Image, pil_format: str) -> Image.Image:
@@ -105,38 +111,55 @@ def index():
     return render_template("index.html")
 
 
-# ── Resize ────────────────────────────────────────────────────────────────
+# ── Task Tracking & Status ───────────────────────────────────────────────
 
-@app.route("/resize", methods=["POST"])
-def resize():
-    files = request.files.getlist("images")
-    new_width = request.form.get("width", type=int)
+@app.route("/task-status/<task_id>")
+def task_status(task_id):
+    with tasks_lock:
+        task = tasks.get(task_id)
+    if not task:
+        return jsonify({"status": "failed", "error": "Tarefa não encontrada."}), 404
+    return jsonify(task)
 
-    if not files or not any(f.filename for f in files):
-        flash("Nenhuma imagem enviada.", "error")
-        return redirect(url_for("index"))
-    if not new_width or new_width <= 0:
-        flash("Informe uma largura válida.", "error")
-        return redirect(url_for("index"))
 
-    session_id = str(uuid.uuid4())
-    upload_dir, saved = save_uploads(files, session_id)
+@app.route("/task-download/<task_id>")
+def task_download(task_id):
+    with tasks_lock:
+        task = tasks.get(task_id)
+    if not task or task.get("status") != "completed":
+        return "Tarefa não concluída ou inválida.", 404
 
-    if not saved:
-        flash("Nenhuma imagem válida encontrada (aceitos: jpg, jpeg, png, webp).", "error")
-        return redirect(url_for("index"))
+    zip_path = task.get("zip_path")
+    if not zip_path or not os.path.exists(zip_path):
+        return "Arquivo não encontrado.", 404
 
-    out_dir = os.path.join(app.config["PROCESSED_FOLDER"], session_id)
-    os.makedirs(out_dir, exist_ok=True)
+    @after_this_request
+    def cleanup(response):
+        try:
+            os.remove(zip_path)
+            with tasks_lock:
+                tasks.pop(task_id, None)
+        except OSError:
+            pass
+        return response
 
+    return send_file(zip_path, as_attachment=True,
+                     download_name=task.get("download_name", "imagens.zip"),
+                     mimetype="application/zip")
+
+
+# ── Background Task Workers ─────────────────────────────────────────────
+
+def bg_resize(task_id, saved, new_width, out_dir, upload_dir, zip_name):
     errors = []
-    for img_path in saved:
+    total = len(saved)
+    for i, img_path in enumerate(saved):
         filename = os.path.basename(img_path)
         ext = filename.rsplit(".", 1)[-1].lower()
         pil_format = EXT_TO_PIL.get(ext, "JPEG")
         try:
             with Image.open(img_path) as img:
-                img.load()  # força a leitura completa antes de fechar
+                img.load()
                 width, height = img.size
                 new_height = functionalities.calc_new_height(width, height, new_width)
                 resized = img.resize((new_width, new_height), Image.LANCZOS)
@@ -149,50 +172,25 @@ def resize():
             logging.error(f"Erro ao redimensionar {filename}: {e}")
             errors.append(filename)
 
-    if errors:
-        flash(f"Erro ao processar: {', '.join(errors)}", "error")
+        with tasks_lock:
+            if task_id in tasks:
+                tasks[task_id]["progress"] = i + 1
+                tasks[task_id]["errors"] = errors
 
-    zip_name = f"resized_{session_id}.zip"
     zip_path = create_zip(out_dir, zip_name)
     shutil.rmtree(upload_dir, ignore_errors=True)
     shutil.rmtree(out_dir,    ignore_errors=True)
 
-    @after_this_request
-    def remove_zip(response):
-        try:
-            os.remove(zip_path)
-        except OSError:
-            pass
-        return response
-
-    return send_file(zip_path, as_attachment=True,
-                     download_name="imagens_redimensionadas.zip",
-                     mimetype="application/zip")
+    with tasks_lock:
+        if task_id in tasks:
+            tasks[task_id]["status"] = "completed"
+            tasks[task_id]["zip_path"] = zip_path
 
 
-# ── Convert ───────────────────────────────────────────────────────────────
-
-@app.route("/convert", methods=["POST"])
-def convert():
-    files = request.files.getlist("images")
-    target_format = request.form.get("format", "webp").lower()
-
-    if not files or not any(f.filename for f in files):
-        flash("Nenhuma imagem enviada.", "error")
-        return redirect(url_for("index"))
-
-    session_id = str(uuid.uuid4())
-    upload_dir, saved = save_uploads(files, session_id)
-
-    if not saved:
-        flash("Nenhuma imagem válida encontrada.", "error")
-        return redirect(url_for("index"))
-
-    out_dir = os.path.join(app.config["PROCESSED_FOLDER"], session_id)
-    os.makedirs(out_dir, exist_ok=True)
-
+def bg_convert(task_id, saved, target_format, out_dir, upload_dir, zip_name):
     errors = []
-    for img_path in saved:
+    total = len(saved)
+    for i, img_path in enumerate(saved):
         filename_base, _ = os.path.splitext(os.path.basename(img_path))
         new_filename = f"{filename_base}.{target_format}"
         pil_format = EXT_TO_PIL.get(target_format, target_format.upper())
@@ -208,52 +206,25 @@ def convert():
             logging.error(f"Erro ao converter {img_path}: {e}")
             errors.append(os.path.basename(img_path))
 
-    if errors:
-        flash(f"Erro ao processar: {', '.join(errors)}", "error")
+        with tasks_lock:
+            if task_id in tasks:
+                tasks[task_id]["progress"] = i + 1
+                tasks[task_id]["errors"] = errors
 
-    zip_name = f"converted_{session_id}.zip"
     zip_path = create_zip(out_dir, zip_name)
     shutil.rmtree(upload_dir, ignore_errors=True)
     shutil.rmtree(out_dir,    ignore_errors=True)
 
-    @after_this_request
-    def remove_zip(response):
-        try:
-            os.remove(zip_path)
-        except OSError:
-            pass
-        return response
-
-    return send_file(zip_path, as_attachment=True,
-                     download_name="imagens_convertidas.zip",
-                     mimetype="application/zip")
+    with tasks_lock:
+        if task_id in tasks:
+            tasks[task_id]["status"] = "completed"
+            tasks[task_id]["zip_path"] = zip_path
 
 
-# ── Compress ──────────────────────────────────────────────────────────────
-
-@app.route("/compress", methods=["POST"])
-def compress():
-    files = request.files.getlist("images")
-    quality = request.form.get("quality", type=int, default=75)
-
-    if not files or not any(f.filename for f in files):
-        flash("Nenhuma imagem enviada.", "error")
-        return redirect(url_for("index"))
-
-    quality = max(1, min(quality, 100))
-
-    session_id = str(uuid.uuid4())
-    upload_dir, saved = save_uploads(files, session_id)
-
-    if not saved:
-        flash("Nenhuma imagem válida encontrada.", "error")
-        return redirect(url_for("index"))
-
-    out_dir = os.path.join(app.config["PROCESSED_FOLDER"], session_id)
-    os.makedirs(out_dir, exist_ok=True)
-
+def bg_compress(task_id, saved, quality, out_dir, upload_dir, zip_name):
     errors = []
-    for img_path in saved:
+    total = len(saved)
+    for i, img_path in enumerate(saved):
         filename = os.path.basename(img_path)
         ext = filename.rsplit(".", 1)[-1].lower()
         pil_format = EXT_TO_PIL.get(ext, "JPEG")
@@ -269,51 +240,27 @@ def compress():
             logging.error(f"Erro ao comprimir {img_path}: {e}")
             errors.append(filename)
 
-    if errors:
-        flash(f"Erro ao processar: {', '.join(errors)}", "error")
+        with tasks_lock:
+            if task_id in tasks:
+                tasks[task_id]["progress"] = i + 1
+                tasks[task_id]["errors"] = errors
 
-    zip_name = f"compressed_{session_id}.zip"
     zip_path = create_zip(out_dir, zip_name)
     shutil.rmtree(upload_dir, ignore_errors=True)
     shutil.rmtree(out_dir,    ignore_errors=True)
 
-    @after_this_request
-    def remove_zip(response):
-        try:
-            os.remove(zip_path)
-        except OSError:
-            pass
-        return response
-
-    return send_file(zip_path, as_attachment=True,
-                     download_name="imagens_comprimidas.zip",
-                     mimetype="application/zip")
+    with tasks_lock:
+        if task_id in tasks:
+            tasks[task_id]["status"] = "completed"
+            tasks[task_id]["zip_path"] = zip_path
 
 
-# ── Remove Background ────────────────────────────────────────────────────
-
-@app.route("/remove-bg", methods=["POST"])
-def remove_bg():
-    files = request.files.getlist("images")
-
-    if not files or not any(f.filename for f in files):
-        flash("Nenhuma imagem enviada.", "error")
-        return redirect(url_for("index"))
-
-    session_id = str(uuid.uuid4())
-    upload_dir, saved = save_uploads(files, session_id)
-
-    if not saved:
-        flash("Nenhuma imagem válida encontrada (aceitos: jpg, jpeg, png, webp).", "error")
-        return redirect(url_for("index"))
-
-    out_dir = os.path.join(app.config["PROCESSED_FOLDER"], session_id)
-    os.makedirs(out_dir, exist_ok=True)
-
+def bg_remove_bg(task_id, saved, out_dir, upload_dir, zip_name):
     errors = []
-    for img_path in saved:
+    total = len(saved)
+    for i, img_path in enumerate(saved):
         filename_base, _ = os.path.splitext(os.path.basename(img_path))
-        out_filename = f"{filename_base}.png"  # sempre PNG para preservar transparência
+        out_filename = f"{filename_base}.png"
         try:
             with open(img_path, "rb") as f_in:
                 input_data = f_in.read()
@@ -325,25 +272,182 @@ def remove_bg():
             logging.error(f"Erro ao remover fundo de {os.path.basename(img_path)}: {e}")
             errors.append(os.path.basename(img_path))
 
-    if errors:
-        flash(f"Erro ao processar: {', '.join(errors)}", "error")
+        with tasks_lock:
+            if task_id in tasks:
+                tasks[task_id]["progress"] = i + 1
+                tasks[task_id]["errors"] = errors
 
-    zip_name = f"sem_fundo_{session_id}.zip"
     zip_path = create_zip(out_dir, zip_name)
     shutil.rmtree(upload_dir, ignore_errors=True)
     shutil.rmtree(out_dir,    ignore_errors=True)
 
-    @after_this_request
-    def remove_zip(response):
-        try:
-            os.remove(zip_path)
-        except OSError:
-            pass
-        return response
+    with tasks_lock:
+        if task_id in tasks:
+            tasks[task_id]["status"] = "completed"
+            tasks[task_id]["zip_path"] = zip_path
 
-    return send_file(zip_path, as_attachment=True,
-                     download_name="imagens_sem_fundo.zip",
-                     mimetype="application/zip")
+
+# ── Resize Route ──────────────────────────────────────────────────────────
+
+@app.route("/resize", methods=["POST"])
+def resize():
+    files = request.files.getlist("images")
+    new_width = request.form.get("width", type=int)
+
+    if not files or not any(f.filename for f in files):
+        return jsonify({"error": "Nenhuma imagem enviada."}), 400
+    if not new_width or new_width <= 0:
+        return jsonify({"error": "Informe uma largura válida."}), 400
+
+    session_id = str(uuid.uuid4())
+    upload_dir, saved = save_uploads(files, session_id)
+
+    if not saved:
+        return jsonify({"error": "Nenhuma imagem válida encontrada (aceitos: jpg, jpeg, png, webp, jfif)."}), 400
+
+    out_dir = os.path.join(app.config["PROCESSED_FOLDER"], session_id)
+    os.makedirs(out_dir, exist_ok=True)
+
+    task_id = str(uuid.uuid4())
+    zip_name = f"resized_{session_id}.zip"
+
+    with tasks_lock:
+        tasks[task_id] = {
+            "status": "processing",
+            "progress": 0,
+            "total": len(saved),
+            "zip_path": None,
+            "download_name": "imagens_redimensionadas.zip",
+            "errors": []
+        }
+
+    threading.Thread(
+        target=bg_resize,
+        args=(task_id, saved, new_width, out_dir, upload_dir, zip_name)
+    ).start()
+
+    return jsonify({"task_id": task_id}), 202
+
+
+# ── Convert Route ─────────────────────────────────────────────────────────
+
+@app.route("/convert", methods=["POST"])
+def convert():
+    files = request.files.getlist("images")
+    target_format = request.form.get("format", "webp").lower()
+
+    if not files or not any(f.filename for f in files):
+        return jsonify({"error": "Nenhuma imagem enviada."}), 400
+
+    session_id = str(uuid.uuid4())
+    upload_dir, saved = save_uploads(files, session_id)
+
+    if not saved:
+        return jsonify({"error": "Nenhuma imagem válida encontrada."}), 400
+
+    out_dir = os.path.join(app.config["PROCESSED_FOLDER"], session_id)
+    os.makedirs(out_dir, exist_ok=True)
+
+    task_id = str(uuid.uuid4())
+    zip_name = f"converted_{session_id}.zip"
+
+    with tasks_lock:
+        tasks[task_id] = {
+            "status": "processing",
+            "progress": 0,
+            "total": len(saved),
+            "zip_path": None,
+            "download_name": "imagens_convertidas.zip",
+            "errors": []
+        }
+
+    threading.Thread(
+        target=bg_convert,
+        args=(task_id, saved, target_format, out_dir, upload_dir, zip_name)
+    ).start()
+
+    return jsonify({"task_id": task_id}), 202
+
+
+# ── Compress Route ────────────────────────────────────────────────────────
+
+@app.route("/compress", methods=["POST"])
+def compress():
+    files = request.files.getlist("images")
+    quality = request.form.get("quality", type=int, default=75)
+
+    if not files or not any(f.filename for f in files):
+        return jsonify({"error": "Nenhuma imagem enviada."}), 400
+
+    quality = max(1, min(quality, 100))
+
+    session_id = str(uuid.uuid4())
+    upload_dir, saved = save_uploads(files, session_id)
+
+    if not saved:
+        return jsonify({"error": "Nenhuma imagem válida encontrada."}), 400
+
+    out_dir = os.path.join(app.config["PROCESSED_FOLDER"], session_id)
+    os.makedirs(out_dir, exist_ok=True)
+
+    task_id = str(uuid.uuid4())
+    zip_name = f"compressed_{session_id}.zip"
+
+    with tasks_lock:
+        tasks[task_id] = {
+            "status": "processing",
+            "progress": 0,
+            "total": len(saved),
+            "zip_path": None,
+            "download_name": "imagens_comprimidas.zip",
+            "errors": []
+        }
+
+    threading.Thread(
+        target=bg_compress,
+        args=(task_id, saved, quality, out_dir, upload_dir, zip_name)
+    ).start()
+
+    return jsonify({"task_id": task_id}), 202
+
+
+# ── Remove Background Route ──────────────────────────────────────────────
+
+@app.route("/remove-bg", methods=["POST"])
+def remove_bg():
+    files = request.files.getlist("images")
+
+    if not files or not any(f.filename for f in files):
+        return jsonify({"error": "Nenhuma imagem enviada."}), 400
+
+    session_id = str(uuid.uuid4())
+    upload_dir, saved = save_uploads(files, session_id)
+
+    if not saved:
+        return jsonify({"error": "Nenhuma imagem válida encontrada (aceitos: jpg, jpeg, png, webp, jfif)."}), 400
+
+    out_dir = os.path.join(app.config["PROCESSED_FOLDER"], session_id)
+    os.makedirs(out_dir, exist_ok=True)
+
+    task_id = str(uuid.uuid4())
+    zip_name = f"sem_fundo_{session_id}.zip"
+
+    with tasks_lock:
+        tasks[task_id] = {
+            "status": "processing",
+            "progress": 0,
+            "total": len(saved),
+            "zip_path": None,
+            "download_name": "imagens_sem_fundo.zip",
+            "errors": []
+        }
+
+    threading.Thread(
+        target=bg_remove_bg,
+        args=(task_id, saved, out_dir, upload_dir, zip_name)
+    ).start()
+
+    return jsonify({"task_id": task_id}), 202
 
 
 # ── Crop (Recortar) ──────────────────────────────────────────────────────

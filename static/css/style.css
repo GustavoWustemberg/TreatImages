@@ -46,6 +46,10 @@ body {
   overflow-x: hidden;
 }
 
+.logo {
+  width: 5rem;
+}
+
 /* ── Animated background orbs ───────────────────────── */
 .bg-orb {
   position: fixed;
@@ -75,7 +79,7 @@ body {
   border-bottom: 1px solid var(--border);
 }
 .nav-brand {
-  display: flex; align-items: center; gap: 10px;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
   text-decoration: none; color: inherit;
 }
 .brand-icon { font-size: 1.6rem; }
@@ -264,6 +268,13 @@ main { position: relative; z-index: 1; }
   -webkit-appearance: none;
   transition: border-color var(--transition);
 }
+
+option {
+  background-color: #18181b; 
+  color: #ffffff;
+  padding: 10px;
+}
+
 .form-select:focus { border-color: var(--accent-2); }
 .select-arrow {
   position: absolute; right: 14px; top: 50%;
@@ -350,6 +361,36 @@ main { position: relative; z-index: 1; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 .loading-text { font-size: 1rem; color: var(--text-secondary); }
+
+/* ── Progress bar for async tasks ───────────────────── */
+.progress-container {
+  width: 280px;
+  margin-top: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.progress-bar-wrapper {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  height: 10px;
+  overflow: hidden;
+  width: 100%;
+}
+.progress-bar {
+  background: linear-gradient(90deg, var(--accent-1), var(--accent-2));
+  width: 0%;
+  height: 100%;
+  transition: width 0.2s ease;
+  border-radius: 99px;
+}
+.progress-status {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  text-align: center;
+  margin: 0;
+}
 
 /* ── Crop Modal ────────────────────────────────────── */
 .crop-modal {

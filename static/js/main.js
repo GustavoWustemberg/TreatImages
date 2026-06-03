@@ -62,11 +62,11 @@ document.addEventListener("DOMContentLoaded", () => {
     countEl.textContent = n > 0 ? `${n} arquivo${n > 1 ? "s" : ""} selecionado${n > 1 ? "s" : ""}` : "";
   }
 
-  // ── Form submit via fetch + Blob download ────
-  //  Isso resolve o loop eterno: com form POST normal o browser não
-  //  navega, então o overlay nunca seria ocultado. Com fetch controlamos
-  //  exatamente o ciclo de vida do loading.
+  // ── Form submit via fetch + Polling for Async Tasks ────
   const overlay = document.getElementById("loading-overlay");
+  const progressContainer = document.getElementById("progress-container");
+  const progressBar = document.getElementById("progress-bar");
+  const progressStatus = document.getElementById("progress-status");
 
   document.querySelectorAll(".tool-form").forEach((form) => {
     form.addEventListener("submit", async (e) => {
@@ -86,6 +86,10 @@ document.addEventListener("DOMContentLoaded", () => {
       } else if (loadingText) {
         loadingText.textContent = "Processando imagens…";
       }
+
+      if (progressBar) progressBar.style.width = "0%";
+      if (progressStatus) progressStatus.textContent = "0%";
+      if (progressContainer) progressContainer.style.display = "none";
       if (overlay) overlay.classList.add("active");
       if (btn) btn.classList.add("loading");
 
@@ -96,45 +100,78 @@ document.addEventListener("DOMContentLoaded", () => {
           body: formData,
         });
 
-        const contentType = response.headers.get("content-type") || "";
+        if (response.status === 202) {
+          const { task_id } = await response.json();
+          if (progressContainer) progressContainer.style.display = "block";
+          
+          // Inicia o Polling
+          const pollInterval = setInterval(async () => {
+            try {
+              const res = await fetch(`/task-status/${task_id}`);
+              if (!res.ok) {
+                clearInterval(pollInterval);
+                showToast("Erro ao monitorar o progresso do lote.", "error");
+                cleanupOverlay(btn);
+                return;
+              }
+              
+              const task = await res.json();
+              if (task.status === "completed") {
+                clearInterval(pollInterval);
+                
+                // Dispara o download
+                const downloadLink = document.createElement("a");
+                downloadLink.href = `/task-download/${task_id}`;
+                document.body.appendChild(downloadLink);
+                downloadLink.click();
+                document.body.removeChild(downloadLink);
 
-        if (response.ok && contentType.includes("zip")) {
-          // ✅ Recebeu ZIP — força o download via Blob URL
-          const blob = await response.blob();
-          const url  = URL.createObjectURL(blob);
-          const a    = document.createElement("a");
-
-          // Tenta obter o nome do arquivo do header Content-Disposition
-          const disposition = response.headers.get("content-disposition") || "";
-          const match = disposition.match(/filename[^;=\n]*=["']?([^"';\n]+)/i);
-          a.download = match ? decodeURIComponent(match[1]) : "imagens.zip";
-
-          a.href = url;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          setTimeout(() => URL.revokeObjectURL(url), 1000);
-
-          showToast("Download iniciado com sucesso! ✅", "success");
+                showToast("Processamento concluído com sucesso! ✅", "success");
+                if (task.errors && task.errors.length > 0) {
+                  showToast(`Falha em algumas imagens: ${task.errors.join(", ")}`, "error");
+                }
+                
+                cleanupOverlay(btn);
+              } else if (task.status === "failed") {
+                clearInterval(pollInterval);
+                showToast(task.error || "O processamento falhou.", "error");
+                cleanupOverlay(btn);
+              } else {
+                // Atualiza progresso
+                const progress = task.progress || 0;
+                const total = task.total || 1;
+                const pct = Math.round((progress / total) * 100);
+                if (progressBar) progressBar.style.width = `${pct}%`;
+                if (progressStatus) progressStatus.textContent = `${progress} / ${total} (${pct}%)`;
+              }
+            } catch (pollErr) {
+              console.error(pollErr);
+              clearInterval(pollInterval);
+              showToast("Erro na comunicação de progresso com o servidor.", "error");
+              cleanupOverlay(btn);
+            }
+          }, 1000);
+          
         } else {
-          // ❌ Backend retornou erro (HTML com flash) — extrai a mensagem
-          const html = await response.text();
-          const parser = new DOMParser();
-          const doc    = parser.parseFromString(html, "text/html");
-          const flashEl = doc.querySelector(".flash");
-          const msg = flashEl ? flashEl.textContent.trim() : "Erro ao processar as imagens.";
+          // ❌ Backend retornou erro direto (ex: 400 ou 500)
+          const data = await response.json();
+          const msg = data.error || "Erro ao processar as imagens.";
           showToast(msg, "error");
+          cleanupOverlay(btn);
         }
       } catch (err) {
         console.error(err);
         showToast("Erro de conexão com o servidor.", "error");
-      } finally {
-        // Sempre oculta o overlay e restaura o botão
-        if (overlay) overlay.classList.remove("active");
-        if (btn) btn.classList.remove("loading");
+        cleanupOverlay(btn);
       }
     });
   });
+
+  function cleanupOverlay(btn) {
+    if (overlay) overlay.classList.remove("active");
+    if (btn) btn.classList.remove("loading");
+    if (progressContainer) progressContainer.style.display = "none";
+  }
 
   // ── Flash auto-dismiss ───────────────────────
   document.querySelectorAll(".flash").forEach((el) => {
