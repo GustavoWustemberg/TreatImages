@@ -1,0 +1,229 @@
+{% extends "layout.html" %}
+{% block title %}TreatImages – Dashboard{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <h1 class="hero-title">Trate suas imagens<br /><span class="gradient-text">em segundos.</span></h1>
+  <p class="hero-subtitle">Faça upload de uma ou mais imagens e escolha a operação desejada. Receba os resultados em um ZIP pronto para baixar.</p>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     RESIZE CARD
+════════════════════════════════════════════════════════════════════════ -->
+<div class="tools-grid">
+
+  <!-- Resize -->
+  <div class="tool-card" id="card-resize">
+    <div class="card-header">
+      <div class="card-icon icon-resize">↔️</div>
+      <div>
+        <h2 class="card-title">Redimensionar</h2>
+        <p class="card-desc">Ajuste a largura mantendo a proporção original.</p>
+      </div>
+    </div>
+
+    <form id="form-resize" action="/resize" method="POST" enctype="multipart/form-data" class="tool-form">
+      <div class="form-group">
+        <label for="resize-images">Imagens <span class="badge">JPG · PNG · WEBP · JFIF</span></label>
+        <div class="dropzone" id="dropzone-resize" data-input="resize-images">
+          <span class="dz-icon">📁</span>
+          <span class="dz-text">Arraste ou <strong>clique</strong> para selecionar</span>
+          <span class="dz-count" id="count-resize"></span>
+        </div>
+        <input type="file" id="resize-images" name="images" multiple accept="image/*" class="hidden-input" />
+      </div>
+
+      <div class="form-group">
+        <label for="resize-width">Nova largura (px)</label>
+        <div class="input-wrapper">
+          <input type="number" id="resize-width" name="width" placeholder="ex: 800" min="1" max="9999" required class="form-input" />
+          <span class="input-suffix">px</span>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary" id="btn-resize">
+        <span class="btn-icon">🔃</span> Redimensionar &amp; Baixar
+      </button>
+    </form>
+  </div>
+
+  <!-- Convert -->
+  <div class="tool-card" id="card-convert">
+    <div class="card-header">
+      <div class="card-icon icon-convert">🔄</div>
+      <div>
+        <h2 class="card-title">Converter</h2>
+        <p class="card-desc">Mude o formato das imagens sem perder qualidade.</p>
+      </div>
+    </div>
+
+    <form id="form-convert" action="/convert" method="POST" enctype="multipart/form-data" class="tool-form">
+      <div class="form-group">
+        <label for="convert-images">Imagens <span class="badge">JPG · PNG · WEBP · JFIF</span></label>
+        <div class="dropzone" id="dropzone-convert" data-input="convert-images">
+          <span class="dz-icon">📁</span>
+          <span class="dz-text">Arraste ou <strong>clique</strong> para selecionar</span>
+          <span class="dz-count" id="count-convert"></span>
+        </div>
+        <input type="file" id="convert-images" name="images" multiple accept="image/*" class="hidden-input" />
+      </div>
+
+      <div class="form-group">
+        <label for="convert-format">Formato de saída</label>
+        <div class="select-wrapper">
+          <select id="convert-format" name="format" class="form-select">
+            <option value="webp">WebP — menor tamanho</option>
+            <option value="jpg">JPG — compatível</option>
+            <option value="png">PNG — sem perdas</option>
+            <option value="jfif">JFIF</option>
+          </select>
+          <span class="select-arrow">▾</span>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-secondary" id="btn-convert">
+        <span class="btn-icon">🔄</span> Converter &amp; Baixar
+      </button>
+    </form>
+  </div>
+
+  <!-- Compress -->
+  <div class="tool-card" id="card-compress">
+    <div class="card-header">
+      <div class="card-icon icon-compress">🗜️</div>
+      <div>
+        <h2 class="card-title">Comprimir</h2>
+        <p class="card-desc">Reduza o tamanho dos arquivos com controle de qualidade.</p>
+      </div>
+    </div>
+
+    <form id="form-compress" action="/compress" method="POST" enctype="multipart/form-data" class="tool-form">
+      <div class="form-group">
+        <label for="compress-images">Imagens <span class="badge">JPG · PNG · WEBP · JFIF</span></label>
+        <div class="dropzone" id="dropzone-compress" data-input="compress-images">
+          <span class="dz-icon">📁</span>
+          <span class="dz-text">Arraste ou <strong>clique</strong> para selecionar</span>
+          <span class="dz-count" id="count-compress"></span>
+        </div>
+        <input type="file" id="compress-images" name="images" multiple accept="image/*" class="hidden-input" />
+      </div>
+
+      <div class="form-group">
+        <label for="compress-quality">
+          Qualidade: <strong id="quality-display">75%</strong>
+        </label>
+        <input type="range" id="compress-quality" name="quality" min="1" max="100" value="75" class="range-input" />
+        <div class="range-labels">
+          <span>Máxima compressão</span>
+          <span>Alta qualidade</span>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-tertiary" id="btn-compress">
+        <span class="btn-icon">🗜️</span> Comprimir &amp; Baixar
+      </button>
+    </form>
+  </div>
+  <!-- Remove Background -->
+  <div class="tool-card" id="card-removebg">
+    <div class="card-header">
+      <div class="card-icon icon-removebg">✂️</div>
+      <div>
+        <h2 class="card-title">Remover Fundo</h2>
+        <p class="card-desc">Remove o fundo automaticamente usando IA. Retorna PNG transparente.</p>
+      </div>
+    </div>
+
+    <form id="form-removebg" action="/remove-bg" method="POST" enctype="multipart/form-data" class="tool-form">
+      <div class="form-group">
+        <label for="removebg-images">Imagens <span class="badge">JPG · PNG · WEBP · JFIF</span></label>
+        <div class="dropzone" id="dropzone-removebg" data-input="removebg-images">
+          <span class="dz-icon">📁</span>
+          <span class="dz-text">Arraste ou <strong>clique</strong> para selecionar</span>
+          <span class="dz-count" id="count-removebg"></span>
+        </div>
+        <input type="file" id="removebg-images" name="images" multiple accept="image/*" class="hidden-input" />
+      </div>
+
+      <div class="form-notice">
+        <span class="notice-icon">🤖</span>
+        <span>Processado localmente por IA (U2Net). <strong>Na 1ª vez</strong>, o modelo (~170 MB) é baixado automaticamente — pode levar alguns minutos.</span>
+      </div>
+
+      <button type="submit" class="btn btn-quaternary" id="btn-removebg" data-loading-text="Removendo fundo com IA…">
+        <span class="btn-icon">✂️</span> Remover Fundo &amp; Baixar
+      </button>
+    </form>
+  </div>
+
+  <!-- Crop -->
+  <div class="tool-card" id="card-crop">
+    <div class="card-header">
+      <div class="card-icon icon-crop">✂️</div>
+      <div>
+        <h2 class="card-title">Recortar</h2>
+        <p class="card-desc">Selecione uma área da imagem para manter. Suporta proporções fixas.</p>
+      </div>
+    </div>
+
+    <form id="form-crop" action="/crop" method="POST" enctype="multipart/form-data" class="tool-form">
+      <div class="form-group">
+        <label for="crop-images">Imagem <span class="badge">JPG · PNG · WEBP · JFIF</span></label>
+        <div class="dropzone" id="dropzone-crop" data-input="crop-images">
+          <span class="dz-icon">📁</span>
+          <span class="dz-text">Arraste ou <strong>clique</strong> para iniciar o recorte</span>
+          <span class="dz-count" id="count-crop"></span>
+        </div>
+        <input type="file" id="crop-images" name="images" accept="image/*" class="hidden-input" />
+      </div>
+
+      <button type="button" class="btn btn-rose" id="btn-crop-start">
+        <span class="btn-icon">✂️</span> Abrir Editor de Recorte
+      </button>
+    </form>
+  </div>
+
+</div><!-- /.tools-grid -->
+
+<!-- Crop Modal -->
+<div class="crop-modal" id="crop-modal">
+  <div class="crop-container">
+    <div class="crop-header">
+      <h3 class="card-title">Editor de Recorte</h3>
+      <button type="button" class="btn btn-outline" id="btn-crop-close">Voltar</button>
+    </div>
+    
+    <div class="crop-body">
+      <img id="crop-image-element" src="" alt="Imagem para recortar" />
+    </div>
+    
+    <div class="crop-footer">
+      <div class="crop-options">
+        <button type="button" class="ratio-btn active" data-ratio="NaN">Livre</button>
+        <button type="button" class="ratio-btn" data-ratio="1">1:1</button>
+        <button type="button" class="ratio-btn" data-ratio="1.77777777778">16:9</button>
+        <button type="button" class="ratio-btn" data-ratio="1.33333333333">4:3</button>
+      </div>
+      
+      <div class="crop-actions">
+        <button type="button" class="btn btn-rose" id="btn-crop-confirm">
+          <span class="btn-icon">✅</span> Finalizar e Baixar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Loading overlay -->
+<div class="loading-overlay" id="loading-overlay">
+  <div class="spinner"></div>
+  <p class="loading-text" id="loading-text">Processando imagens…</p>
+  <div class="progress-container" id="progress-container" style="display: none;">
+    <div class="progress-bar-wrapper">
+      <div class="progress-bar" id="progress-bar"></div>
+    </div>
+    <p class="progress-status" id="progress-status">0%</p>
+  </div>
+</div>
+
+{% endblock %}
